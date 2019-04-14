@@ -23,7 +23,8 @@ import (
 	"path"
 	"path/filepath"
 
-	"github.com/ezbastion/ezb_vault/configuration"
+	fqdn "github.com/ShowMax/go-fqdn"
+	"github.com/chavers/ezb_vault/configuration"
 )
 
 var exPath string
@@ -77,7 +78,9 @@ func CheckFolder(isIntSess bool) {
 
 func Setup(isIntSess bool) error {
 
+	_fqdn := fqdn.Get()
 	quiet := false
+	hostname, _ := os.Hostname()
 	confFile := path.Join(exPath, "conf/config.json")
 	CheckFolder(isIntSess)
 	conf, err := CheckConfig(isIntSess)
@@ -91,9 +94,12 @@ func Setup(isIntSess bool) error {
 		conf.PrivateKey = "cert/ezb_vault.key"
 		conf.PublicCert = "cert/ezb_vault.crt"
 		conf.DB = "db/ezb_vault.db"
-
+		conf.EzbPki = "localhost:6000"
+		conf.SAN = []string{_fqdn, hostname}
 	}
-
+	_, fica := os.Stat(path.Join(exPath, conf.CaCert))
+	_, fipriv := os.Stat(path.Join(exPath, conf.PrivateKey))
+	_, fipub := os.Stat(path.Join(exPath, conf.PublicCert))
 	if quiet {
 		c, _ := json.Marshal(conf)
 		ioutil.WriteFile(confFile, c, 0600)

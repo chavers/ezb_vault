@@ -13,19 +13,17 @@
 //     You should have received a copy of the GNU Affero General Public License
 //     along with ezBastion.  If not, see <https://www.gnu.org/licenses/>.
 
-
 package configuration
 
 type Configuration struct {
-	Listen          string `json:"listen"`
-	PrivateKey      string `json:"privatekey"`
-	PublicCert      string `json:"publiccert"`
-	CaCert          string `json:"cacert"`
-	DB              string `json:"dbpath"`
-	ServiceName     string `json:"servicename"`
-	ServiceFullName string `json:"servicefullname"`
-	LogLevel        string `json:"loglevel"`
-
+	Listen          string   `json:"listen"`
+	PrivateKey      string   `json:"privatekey"`
+	PublicCert      string   `json:"publiccert"`
+	CaCert          string   `json:"cacert"`
+	DB              string   `json:"dbpath"`
+	ServiceName     string   `json:"servicename"`
+	ServiceFullName string   `json:"servicefullname"`
+	LogLevel        string   `json:"loglevel"`
+	EzbPki          string   `json:"ezb_pki"`
+	SAN             []string `json:"san"`
 }
-
-
