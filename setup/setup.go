@@ -22,8 +22,9 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-
-	"github.com/ezbastion/ezb_vault/configuration"
+	"ezb_vault/configuration"
+	"ezb_lib/certmanager"
+	fqdn "github.com/ShowMax/go-fqdn"
 )
 
 var exPath string
@@ -77,7 +78,9 @@ func CheckFolder(isIntSess bool) {
 
 func Setup(isIntSess bool) error {
 
-	quiet := false
+	_fqdn := fqdn.Get()
+	quiet := true
+	hostname, _ := os.Hostname()
 	confFile := path.Join(exPath, "conf/config.json")
 	CheckFolder(isIntSess)
 	conf, err := CheckConfig(isIntSess)
@@ -91,9 +94,61 @@ func Setup(isIntSess bool) error {
 		conf.PrivateKey = "cert/ezb_vault.key"
 		conf.PublicCert = "cert/ezb_vault.crt"
 		conf.DB = "db/ezb_vault.db"
-
+		conf.EzbPki = "localhost:6000"
+		conf.SAN = []string{_fqdn, hostname}
 	}
 
+	if quiet == false {
+		fmt.Print("\n\n")
+		fmt.Println("***********")
+		fmt.Println("*** PKI ***")
+		fmt.Println("***********")
+		fmt.Println("ezBastion nodes use elliptic curve digital signature algorithm ")
+		fmt.Println("(ECDSA) to communicate.")
+		fmt.Println("We need ezb_pki address and port, to request certificat pair.")
+		fmt.Println("ex: 10.20.1.2:6000 pki.domain.local:6000")
+
+		for {
+			p := askForValue("ezb_pki", conf.EzbPki, `^[a-zA-Z0-9-\.]+:[0-9]{4,5}$`)
+			c := askForConfirmation(fmt.Sprintf("pki address (%s) ok?", p))
+			if c {
+				conn, err := net.Dial("tcp", p)
+				if err != nil {
+					fmt.Printf("## Failed to connect to %s ##\n", p)
+				} else {
+					conn.Close()
+					conf.EzbPki = p
+					break
+				}
+			}
+		}
+
+		fmt.Print("\n\n")
+		fmt.Println("Certificat Subject Alternative Name.")
+		fmt.Printf("\nBy default using: <%s, %s> as SAN. Add more ?\n", _fqdn, hostname)
+		for {
+			tmp := conf.SAN
+
+			san := askForValue("SAN (comma separated list)", strings.Join(conf.SAN, ","), `(?m)^[[:ascii:]]*,?$`)
+
+			t := strings.Replace(san, " ", "", -1)
+			tmp = strings.Split(t, ",")
+			c := askForConfirmation(fmt.Sprintf("SAN list %s ok?", tmp))
+			if c {
+				conf.SAN = tmp
+				break
+			}
+		}
+	}
+
+	if os.IsNotExist(fica) || os.IsNotExist(fipriv) || os.IsNotExist(fipub) {
+		keyFile := path.Join(exPath, conf.PrivateKey)
+		certFile := path.Join(exPath, conf.PublicCert)
+		caFile := path.Join(exPath, conf.CaCert)
+		request := newCertificateRequest(conf.ServiceName, 730, conf.SAN)
+		generate(request, conf.EzbPki, certFile, keyFile, caFile)
+	}
+	
 	if quiet {
 		c, _ := json.Marshal(conf)
 		ioutil.WriteFile(confFile, c, 0600)
