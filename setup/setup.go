@@ -17,13 +17,18 @@ package setup
 
 import (
 	"encoding/json"
+	"ezb_lib/certmanager"
+	"ezb_lib/ez_stdio"
+	"ezb_vault/configuration"
+	"fmt"
 	"io/ioutil"
 	"log"
+	"net"
 	"os"
 	"path"
 	"path/filepath"
-	"ezb_vault/configuration"
-	"ezb_lib/certmanager"
+	"strings"
+
 	fqdn "github.com/ShowMax/go-fqdn"
 )
 
@@ -34,6 +39,7 @@ func init() {
 	exPath = filepath.Dir(ex)
 }
 
+// CheckConfig : checks the json confiog file
 func CheckConfig(isIntSess bool) (conf configuration.Configuration, err error) {
 	confFile := path.Join(exPath, "conf/config.json")
 	raw, err := ioutil.ReadFile(confFile)
@@ -44,6 +50,7 @@ func CheckConfig(isIntSess bool) (conf configuration.Configuration, err error) {
 	return conf, nil
 }
 
+// CheckFolder : checks the different folder needed
 func CheckFolder(isIntSess bool) {
 
 	if _, err := os.Stat(path.Join(exPath, "cert")); os.IsNotExist(err) {
@@ -76,6 +83,7 @@ func CheckFolder(isIntSess bool) {
 	}
 }
 
+// Setup : Setup function, setting conf files, folders and certs
 func Setup(isIntSess bool) error {
 
 	_fqdn := fqdn.Get()
@@ -97,6 +105,9 @@ func Setup(isIntSess bool) error {
 		conf.EzbPki = "localhost:6000"
 		conf.SAN = []string{_fqdn, hostname}
 	}
+	_, fica := os.Stat(path.Join(exPath, conf.CaCert))
+	_, fipriv := os.Stat(path.Join(exPath, conf.PrivateKey))
+	_, fipub := os.Stat(path.Join(exPath, conf.PublicCert))
 
 	if quiet == false {
 		fmt.Print("\n\n")
@@ -109,8 +120,8 @@ func Setup(isIntSess bool) error {
 		fmt.Println("ex: 10.20.1.2:6000 pki.domain.local:6000")
 
 		for {
-			p := askForValue("ezb_pki", conf.EzbPki, `^[a-zA-Z0-9-\.]+:[0-9]{4,5}$`)
-			c := askForConfirmation(fmt.Sprintf("pki address (%s) ok?", p))
+			p := ez_stdio.AskForValue("ezb_pki", conf.EzbPki, `^[a-zA-Z0-9-\.]+:[0-9]{4,5}$`)
+			c := ez_stdio.AskForConfirmation(fmt.Sprintf("pki address (%s) ok?", p))
 			if c {
 				conn, err := net.Dial("tcp", p)
 				if err != nil {
@@ -129,11 +140,11 @@ func Setup(isIntSess bool) error {
 		for {
 			tmp := conf.SAN
 
-			san := askForValue("SAN (comma separated list)", strings.Join(conf.SAN, ","), `(?m)^[[:ascii:]]*,?$`)
+			san := ez_stdio.AskForValue("SAN (comma separated list)", strings.Join(conf.SAN, ","), `(?m)^[[:ascii:]]*,?$`)
 
 			t := strings.Replace(san, " ", "", -1)
 			tmp = strings.Split(t, ",")
-			c := askForConfirmation(fmt.Sprintf("SAN list %s ok?", tmp))
+			c := ez_stdio.AskForConfirmation(fmt.Sprintf("SAN list %s ok?", tmp))
 			if c {
 				conf.SAN = tmp
 				break
@@ -145,10 +156,10 @@ func Setup(isIntSess bool) error {
 		keyFile := path.Join(exPath, conf.PrivateKey)
 		certFile := path.Join(exPath, conf.PublicCert)
 		caFile := path.Join(exPath, conf.CaCert)
-		request := newCertificateRequest(conf.ServiceName, 730, conf.SAN)
-		generate(request, conf.EzbPki, certFile, keyFile, caFile)
+		request := certmanager.NewCertificateRequest(conf.ServiceName, 730, conf.SAN)
+		certmanager.Generate(request, conf.EzbPki, certFile, keyFile, caFile)
 	}
-	
+
 	if quiet {
 		c, _ := json.Marshal(conf)
 		ioutil.WriteFile(confFile, c, 0600)
