@@ -93,7 +93,7 @@ func Setup(isIntSess bool) error {
 	CheckFolder(isIntSess)
 	conf, err := CheckConfig(isIntSess)
 	if err != nil {
-		quiet = true
+		quiet = false
 		conf.Listen = ":5100"
 		conf.ServiceFullName = "Easy Bastion Vault"
 		conf.ServiceName = "ezb_vault"
@@ -160,10 +160,10 @@ func Setup(isIntSess bool) error {
 		certmanager.Generate(request, conf.EzbPki, certFile, keyFile, caFile)
 	}
 
-	if quiet {
-		c, _ := json.Marshal(conf)
-		ioutil.WriteFile(confFile, c, 0600)
-		log.Println(confFile, " saved.")
-	}
+	
+	c, _ := json.Marshal(conf)
+	ioutil.WriteFile(confFile, c, 0600)
+	log.Println(confFile, " saved.")
+	
 	return nil
 }
